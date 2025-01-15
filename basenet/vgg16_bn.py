@@ -4,7 +4,14 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 from torchvision import models
-from torchvision.models.vgg import model_urls
+# from torchvision.models.utils import load_state_dict_from_url
+from torch.hub import load_state_dict_from_url
+
+
+# Define the URL for pretrained weights
+model_urls = {
+    'vgg16_bn': 'http://download.pytorch.org/models/vgg16_bn-6c64b313.pth',
+}
 
 def init_weights(modules):
     for m in modules:
@@ -22,8 +29,14 @@ def init_weights(modules):
 class vgg16_bn(torch.nn.Module):
     def __init__(self, pretrained=True, freeze=True):
         super(vgg16_bn, self).__init__()
-        model_urls['vgg16_bn'] = model_urls['vgg16_bn'].replace('https://', 'http://')
-        vgg_pretrained_features = models.vgg16_bn(pretrained=pretrained).features
+        if pretrained:
+            # Load the pretrained weights manually
+            state_dict = load_state_dict_from_url(model_urls['vgg16_bn'], progress=True)
+            vgg_pretrained_features = models.vgg16_bn().features
+            vgg_pretrained_features.load_state_dict(state_dict, strict=False)
+        else:
+            vgg_pretrained_features = models.vgg16_bn(pretrained=False).features
+
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()
@@ -55,7 +68,7 @@ class vgg16_bn(torch.nn.Module):
 
         if freeze:
             for param in self.slice1.parameters():      # only first conv
-                param.requires_grad= False
+                param.requires_grad = False
 
     def forward(self, X):
         h = self.slice1(X)
